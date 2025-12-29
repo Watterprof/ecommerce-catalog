@@ -1,110 +1,119 @@
 <template>
-  <div class="page" :class="pageClass">
-    <div class="card">
-      <div v-if="loading" class="loader-wrap">
-        <div class="loader"></div>
+  <div :class="['product-container', pageClass]">
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-container">
+      <div class="skeleton-card">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-text"></div>
+          <div class="skeleton-text"></div>
+          <div class="skeleton-price"></div>
+          <div class="skeleton-buttons">
+            <div class="skeleton-button"></div>
+            <div class="skeleton-button"></div>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <template v-else>
-        <div v-if="isMenOrWomen" class="card-grid">
-          <div class="img-wrap">
-            <img :src="product.image" :alt="product.title" />
-          </div>
-
-          <div class="content">
-            <h1 class="title">{{ product.title }}</h1>
-
-            <div class="meta">
-              <span class="category">{{ product.category }}</span>
-              <span class="dot">•</span>
-              <span class="rating">
-                {{ product.rating?.rate ?? "-" }}/5
-                <span class="small">({{ product.rating?.count ?? 0 }})</span>
-              </span>
-            </div>
-
-            <p class="desc">{{ product.description }}</p>
-
-            <div class="price">${{ Number(product.price).toFixed(2) }}</div>
-
-            <div class="actions">
-              <button class="btn primary" type="button">Buy now</button>
-              <button class="btn outline" type="button" @click="nextProduct">
-                Next product
-              </button>
-            </div>
-          </div>
+    <!-- Product Card -->
+    <div v-else class="product-card">
+      <div class="product-image">
+        <img :src="currentProduct.image" :alt="currentProduct.title" />
+      </div>
+      
+      <div class="product-details">
+        <h2 class="product-title">{{ currentProduct.title }}</h2>
+        <p class="product-category">{{ currentProduct.category }}</p>
+        
+        <div class="rating">
+          <span v-for="star in 5" :key="star" class="star">
+            {{ star <= Math.round(currentProduct.rating?.rate || 0) ? '●' : '○' }}
+          </span>
         </div>
-
-        <div v-else class="unavailable">
-          <div class="unavailable-illus" aria-hidden="true"></div>
-          <div class="unavailable-box">
-            <p class="unavailable-text">This product is unavailable to show</p>
-            <button class="btn outline dark" type="button" @click="nextProduct">
-              Next product
-            </button>
-          </div>
+        
+        <p class="product-description">{{ currentProduct.description }}</p>
+        
+        <p class="product-price">${{ currentProduct.price }}</p>
+        
+        <div class="button-group">
+          <button :class="['btn', 'btn-buy', btnBuyClass]">Buy now</button>
+          <button class="btn btn-next" @click="nextProduct">Next product</button>
         </div>
-      </template>
+      </div>
+    </div>
+
+    <!-- Unavailable Product Message -->
+    <div v-if="showUnavailable" class="unavailable-message">
+      <p class="unavailable-text">This product is unavailable to show</p>
+      <button class="btn btn-next" @click="nextProduct">Next product</button>
     </div>
   </div>
 </template>
 
 <script>
 export default {
-  name: "ProductDisplay",
+  name: 'ProductDisplay',
   data() {
     return {
-      index: 1,
-      loading: false,
-      product: null,
+      currentProduct: {},
+      productIndex: 1,
+      isLoading: false,
+      showUnavailable: false,
+      validCategories: ["men's clothing", "women's clothing"]
     };
   },
   computed: {
-    category() {
-      return (this.product?.category || "").toLowerCase();
-    },
-    isMen() {
-      return this.category === "men's clothing";
-    },
-    isWomen() {
-      return this.category === "women's clothing";
-    },
-    isMenOrWomen() {
-      return this.isMen || this.isWomen;
-    },
     pageClass() {
-      if (this.loading) return "theme-neutral";
-      if (this.isMen) return "theme-men";
-      if (this.isWomen) return "theme-women";
-      return "theme-unavailable";
+      if (this.showUnavailable) return 'page-unavailable';
+      if (this.currentProduct.category === "men's clothing") return 'page-men';
+      if (this.currentProduct.category === "women's clothing") return 'page-women';
+      return '';
     },
+    btnBuyClass() {
+      if (this.currentProduct.category === "men's clothing") return 'btn-buy-men';
+      if (this.currentProduct.category === "women's clothing") return 'btn-buy-women';
+      return '';
+    }
   },
   methods: {
     async fetchProduct() {
-      this.loading = true;
-      this.product = null;
-
+      this.isLoading = true;
+      this.showUnavailable = false;
+      
       try {
-        const res = await fetch(
-          `https://fakestoreapi.com/products/${this.index}`
-        );
-        if (!res.ok) throw new Error("Failed to fetch product");
-        this.product = await res.json();
-      } catch (e) {
-        this.product = { category: "unavailable" };
+        const response = await fetch(`https://fakestoreapi.com/products/${this.productIndex}`);
+        const data = await response.json();
+        
+        if (this.validCategories.includes(data.category)) {
+          this.currentProduct = data;
+          this.showUnavailable = false;
+        } else {
+          this.currentProduct = {};
+          this.showUnavailable = true;
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        this.showUnavailable = true;
       } finally {
-        this.loading = false;
+        this.isLoading = false;
       }
     },
     nextProduct() {
-      this.index += 1;
-      if (this.index > 20) this.index = 1;
+      this.productIndex++;
+      if (this.productIndex > 20) {
+        this.productIndex = 1;
+      }
       this.fetchProduct();
-    },
+    }
   },
   mounted() {
     this.fetchProduct();
-  },
+  }
 };
 </script>
+
+<style scoped>
+/* Styles will be in page.css */
+</style>
